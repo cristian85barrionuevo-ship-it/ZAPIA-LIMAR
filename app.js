@@ -83,9 +83,12 @@ async function sendOrder(e){
   const total=rows.reduce((a,x)=>a+x.p.price*x.i.qty,0);
   const lines=rows.map(x=>`• ${x.i.qty} x ${x.p.name} — ${money(x.p.price*x.i.qty)}`).join('\n');
   const button=e.target.querySelector('button[type="submit"]'); if(button){button.disabled=true;button.textContent='Guardando pedido…';}
-  const {data:order,error:orderError}=await sb.from('orders').insert({customer_name:name,customer_phone:phone,delivery_address:address,notes,total}).select('id').single();
-  if(orderError){ alert('No pudimos guardar el pedido. Revisá tu conexión e intentá nuevamente.'); if(button){button.disabled=false;button.textContent='Enviar pedido por WhatsApp';} return; }
-  const {error:itemError}=await sb.from('order_items').insert(rows.map(x=>({order_id:order.id,product_id:x.p.id,product_name:x.p.name,unit_price:x.p.price,quantity:x.i.qty})));
+  // Generamos el ID en el navegador para no pedir SELECT sobre el pedido recién creado.
+  // Los clientes anónimos pueden INSERTAR pedidos, pero no deben poder leerlos.
+  const orderId=crypto.randomUUID();
+  const {error:orderError}=await sb.from('orders').insert({id:orderId,customer_name:name,customer_phone:phone,delivery_address:address,notes,total});
+  if(orderError){ console.error(orderError); alert('No pudimos guardar el pedido. Revisá tu conexión e intentá nuevamente.'); if(button){button.disabled=false;button.textContent='Enviar pedido por WhatsApp';} return; }
+  const {error:itemError}=await sb.from('order_items').insert(rows.map(x=>({order_id:orderId,product_id:x.p.id,product_name:x.p.name,unit_price:x.p.price,quantity:x.i.qty})));
   if(itemError) console.warn('Pedido guardado, pero faltó el detalle', itemError);
   const msg=`Hola Fragancias LiMar, quiero hacer este pedido:\n\n${lines}\n\nTotal: ${money(total)}\nPago: contra entrega\n\nDatos del cliente:\nNombre: ${name}\nTeléfono: ${phone}\nDirección: ${address}${notes?'\nObservaciones: '+notes:''}`;
   window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`,'_blank');
