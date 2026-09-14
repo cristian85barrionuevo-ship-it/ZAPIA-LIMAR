@@ -4,11 +4,12 @@ const ADMIN_EMAIL = 'cristian85barrionuevo@gmail.com';
 const WHATSAPP = '5492634587402';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 let products=[], cart=JSON.parse(localStorage.getItem('limarCart')||'[]'), active='Todos', editId=null, adminUnlocked=false, loading=true;
+const fallbackProducts=typeof initialProducts!=='undefined'?initialProducts.map(normalize):[];
 const money=n=>n?new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(n):'Consultar';
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const saveCart=()=>localStorage.setItem('limarCart',JSON.stringify(cart));
 function normalize(p){return {...p,id:String(p.id),price:Number(p.price||0),group:p.description||p.category||'',image:p.image_url||''};}
-async function loadProducts(){loading=true;render();const {data,error}=await sb.from('products').select('id,name,category,description,price,image_url,active').eq('active',true).order('name',{ascending:true});if(error){console.error(error);products=[];showStatus('No se pudo actualizar el catálogo. Intentá recargar la página.',true)}else products=(data||[]).map(normalize);loading=false;render();}
+async function loadProducts(){loading=true;render();products=fallbackProducts.slice();loading=false;render();}
 function showStatus(text,error=false){const el=document.getElementById('status');if(!el)return;el.textContent=text;el.style.display=text?'block':'none';el.style.background=error?'#fff0f0':'#e5f7ef';el.style.color=error?'#9b3030':'#176d4e';}
 function categories(){return ['Todos',...new Set(products.map(p=>p.category).filter(Boolean))]}
 function renderFilters(){document.getElementById('filters').innerHTML=categories().map(c=>`<button class="filter ${c===active?'active':''}" onclick="active=${JSON.stringify(c)};render()">${esc(c)}</button>`).join('')}
